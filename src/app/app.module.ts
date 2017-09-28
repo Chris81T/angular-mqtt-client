@@ -1,3 +1,4 @@
+import { MqttClientService } from './shared/services/mqtt-client.service';
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 
@@ -10,7 +11,7 @@ import { AppComponent } from './app.component';
   imports: [
     BrowserModule
   ],
-  providers: [],
+  providers: [MqttClientService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

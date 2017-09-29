@@ -1,70 +1,58 @@
 import { Injectable } from '@angular/core';
 
-import { Paho } from 'paho-mqtt';
+import { } from 'paho-mqtt';
 
+import { Subject } from 'rxjs/Subject';
+import { Subscription } from 'rxjs/Subscription';
+import { Observable } from 'rxjs/Observable';
+
+/**
+ * For this service the javascript lib paho-mqtt and also the definetly typed definition @types/paho-mqtt must be installed using npm
+ */
 @Injectable()
 export class MqttClientService {
   
-  private mqttClient: any;
+  private mqttClient: Paho.MQTT.Client;
+
+  private subject$$ = new Subject<Paho.MQTT.Message>();
 
   constructor() { 
   }
 
-  connect(url: string, port: string, clientId: string) {
+  connect(url: string, port: number, clientId: string) {
     console.log(`[MqttClientService] connect to ${url}:${port} - clientId = ${clientId}`);
 
     this.mqttClient = new Paho.MQTT.Client(url, port, clientId);
+    this.mqttClient.onMessageArrived = (message: Paho.MQTT.Message) => {
+      this.subject$$.next(message);
+    };
+
+    this.mqttClient.onConnectionLost = (error: Paho.MQTT.MQTTError) => {
+      if (error.errorCode !== 0) {
+        console.log('Connection lost! Poke an error!');
+        this.subject$$.error(error);
+      }
+    };
+
+    this.mqttClient.connect({
+      onSuccess: () => {
+        console.log('Client is connected :-)');
+      }
+    });    
   }
 
-}
+  disconnect() {
+    console.log('[MqttClientService] disconnect');
+    this.mqttClient.disconnect();
+  }
 
-/**
- * Offene Punkte
- * *************
- * 
- * Angular Projekt --> Reine Service Bereitstellung - hier wird z.B. das paho-mqtt als JS lib benötigt (npm install --save paho-mqtt)
- * Verwendung von 3rd Party Libs
- * 'Interface' as Angular Service - Injectable?! (Impl austauschbar machen)
- * Umgang mit den 'spec.ts'
- * 
- */
+  subscribe(topic: string): Subscription {    
+    if (this.mqttClient.isConnected) {
+      this.mqttClient.subscribe(topic);
+    }
 
-
- /*
-
-console.log('Ready to connect via MQTT(ws)...');
-
-// Create a client instance
-var client = new Paho.MQTT.Client('broker.hivemq.com', Number(8000), "paho-mqtt-client-testor");
-
-// set callback handlers
-client.onConnectionLost = onConnectionLost;
-client.onMessageArrived = onMessageArrived;
-
-// connect the client
-client.connect({onSuccess:onConnect});
-
-
-// called when the client connects
-function onConnect() {
-  // Once a connection has been made, make a subscription and send a message.
-  console.log("onConnect");
-  client.subscribe("World");
-  var message = new Paho.MQTT.Message("Hello");
-  message.destinationName = "World";
-  client.send(message);
-}
-
-// called when the client loses its connection
-function onConnectionLost(responseObject) {
-  if (responseObject.errorCode !== 0) {
-    console.log("onConnectionLost:"+responseObject.errorMessage);
+    return this.subject$$.asObservable().subscribe((message) => {
+      console.log('INCOMING ', message.destinationName);
+    });      
   }
 }
-
-// called when a message arrives
-function onMessageArrived(message) {
-  console.log("onMessageArrived:"+message.payloadString);
-}
-
- */
